@@ -116,6 +116,12 @@
     width: 44px; height: 44px; margin: -22px 0 0 -22px;
     display: flex; align-items: center; justify-content: center;
     font-size: 26px; text-shadow: 0 2px 4px rgba(0,0,0,.5);
+    transition: opacity .4s ease, filter .4s ease;
+  }
+  .seg-icon.claimed { opacity: .25; filter: grayscale(1) !important; }
+  .seg-icon.claimed::after {
+    content: "✓"; position: absolute; bottom: -2px; right: 0;
+    font-size: 13px; color: #fff; text-shadow: 0 1px 2px rgba(0,0,0,.8);
   }
   .hub {
     position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%);
@@ -386,6 +392,7 @@
 
   // ===== State =====
   let coins, spinNumber, claimed, spinning, forceJackpot, wheelAngle;
+  const claimedSegs = new Set();   // segment indices whose prize was already won
 
   const $ = id => document.getElementById(id);
   const fmt = n => n.toLocaleString("en-US");
@@ -398,17 +405,25 @@
   }
 
   // ===== Wheel rendering =====
+  function hexToRgba(hex, a) {
+    const n = parseInt(hex.slice(1), 16);
+    return `rgba(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255}, ${a})`;
+  }
+
+  // (re)paint the wheel — claimed segments render transparent and ✓-marked
   function buildWheel() {
-    const stops = SEGMENTS.map(s =>
-      `${TIER_COLORS[s.tier][0]} ${s.start}deg ${s.start + s.deg}deg`).join(", ");
+    const stops = SEGMENTS.map((s, i) => {
+      const col = claimedSegs.has(i) ? hexToRgba(TIER_COLORS[s.tier][0], .16) : TIER_COLORS[s.tier][0];
+      return `${col} ${s.start}deg ${s.start + s.deg}deg`;
+    }).join(", ");
     const w = $("wheel");
     w.style.background = `conic-gradient(${stops})`;
     w.innerHTML = "";
-    SEGMENTS.forEach(s => {
+    SEGMENTS.forEach((s, i) => {
       const icon = document.createElement("div");
-      icon.className = "seg-icon";
+      icon.className = "seg-icon" + (claimedSegs.has(i) ? " claimed" : "");
       icon.textContent = ITEMS[s.item].icon;
-      icon.title = ITEMS[s.item].name;
+      icon.title = ITEMS[s.item].name + (claimedSegs.has(i) ? " (claimed)" : "");
       if (s.tier === "jackpot") icon.style.filter = "drop-shadow(0 0 6px rgba(255,217,94,.95))";
       const ang = s.start + s.deg / 2;
       icon.style.transform = `rotate(${ang}deg) translateY(-118px)`;
@@ -431,15 +446,20 @@
     $("odds-note").innerHTML =
       `🧹 Jackpot (${ITEMS[CONFIG.JackpotItem].name}): 1 in ${fmt(jpOdds)} per spin — ` +
       `<b>guaranteed on spin ${CONFIG.PitySpin}</b>.<br>` +
-      `Total cost to guarantee: <b>🪙 ${fmt(totalCost)}</b>.`;
+      `Total cost to guarantee: <b>🪙 ${fmt(totalCost)}</b>.<br>` +
+      `Each prize can be won <b>only once</b> — claimed prizes turn transparent and leave the draw.`;
   }
 
   // ===== Spin logic =====
-  function rollTier() {
-    const total = CONFIG.Tiers.reduce((s, t) => s + t.Weight, 0);
+  function rollTier(tiers) {
+    const total = tiers.reduce((s, t) => s + t.Weight, 0);
     let r = Math.random() * total;
-    for (const t of CONFIG.Tiers) { if ((r -= t.Weight) < 0) return t; }
-    return CONFIG.Tiers[0];
+    for (const t of tiers) { if ((r -= t.Weight) < 0) return t; }
+    return tiers[0];
+  }
+
+  function unclaimedSegsOf(tierId) {
+    return SEGMENTS.map((s, i) => s.tier === tierId && !claimedSegs.has(i) ? i : -1).filter(i => i >= 0);
   }
 
   function costClass(cost) {
@@ -481,14 +501,19 @@
     const isPity = spinNumber === CONFIG.PitySpin;
     const isEarlyJp = forceJackpot || Math.random() < CONFIG.JackpotPerSpinChance;
     forceJackpot = false;
-    const jackpot = isPity || isEarlyJp;
+
+    // claimed prizes are out of the draw — roll only among tiers with unclaimed segments
+    const availTiers = CONFIG.Tiers.filter(t => unclaimedSegsOf(t.Id).length > 0);
+    const allPrizesClaimed = availTiers.length === 0;
+    const jackpot = isPity || isEarlyJp || allPrizesClaimed;
 
     let targetSegIdx, tier;
     if (jackpot) {
       targetSegIdx = SEGMENTS.findIndex(s => s.tier === "jackpot");
+      if (allPrizesClaimed && !isPity && !isEarlyJp) log("All prizes claimed — only the JACKPOT is left!", "warn");
     } else {
-      tier = rollTier();
-      const candidates = SEGMENTS.map((s, i) => s.tier === tier.Id ? i : -1).filter(i => i >= 0);
+      tier = rollTier(availTiers);
+      const candidates = unclaimedSegsOf(tier.Id);
       targetSegIdx = candidates[Math.floor(Math.random() * candidates.length)];
     }
 
@@ -522,10 +547,12 @@
         log(isPity ? `PITY HIT — spin ${CONFIG.PitySpin}: JACKPOT guaranteed!` : "EARLY JACKPOT (beat 1-in-1,000,000 odds)!", "done");
         showReward({ Id: "legendary" }, CONFIG.JackpotItem, true);
       } else {
-        // award exactly the prize shown on the landed segment
+        // award exactly the prize shown on the landed segment, then retire it
         resultTier = tier.Id;
         itemId = SEGMENTS[targetSegIdx].item;
-        log(`Result: ${TIER_NAMES[tier.Id]} → ${ITEMS[itemId].name}`);
+        claimedSegs.add(targetSegIdx);
+        buildWheel();
+        log(`Result: ${TIER_NAMES[tier.Id]} → ${ITEMS[itemId].name} — prize removed from the wheel`);
         showReward(tier, itemId, false);
         spinNumber++;
       }
@@ -535,7 +562,9 @@
         spin_no: thisSpin,
         cost_coins: cost,
         result_tier: resultTier,
+        seg_idx: targetSegIdx,
         item_id: itemId,
+        claimed_segments: [...claimedSegs],
         pity_progress: `${thisSpin}/${CONFIG.PitySpin}`,
         jackpot_claimed: claimed,
         coins_after: coins,
@@ -558,6 +587,8 @@
   function reset() {
     coins = 12000; spinNumber = 1; claimed = false; spinning = false;
     forceJackpot = false; wheelAngle = 0;
+    claimedSegs.clear();
+    buildWheel();
     $("wheel").style.transition = "none";
     $("wheel").style.transform = "rotate(0deg)";
     requestAnimationFrame(() => { $("wheel").style.transition = ""; });

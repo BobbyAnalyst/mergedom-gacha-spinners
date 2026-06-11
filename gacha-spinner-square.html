@@ -1,0 +1,604 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mergedom — Lucky Square (Flat-Cost Gacha Spinner)</title>
+<style>
+  :root {
+    --c-common: #9aa3ad;
+    --c-common-dk: #6f7882;
+    --c-rare: #4cb944;
+    --c-rare-dk: #338a2d;
+    --c-mythic: #3b8de0;
+    --c-mythic-dk: #2563a8;
+    --c-legendary: #f4c33b;
+    --c-legendary-dk: #c2922a;
+    --wood: #6e4a1f;
+    --wood-dk: #4a2a0a;
+    --cream: #fff7e6;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: "Nunito Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    background: radial-gradient(circle at 50% 30%, #14322a, #0a1c17 75%);
+    min-height: 100vh;
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    gap: 28px;
+    padding: 30px 20px;
+  }
+
+  /* ===== Phone frame ===== */
+  .phone {
+    width: 414px; height: 896px;
+    background: #111;
+    border-radius: 46px;
+    padding: 14px;
+    box-shadow: 0 30px 80px rgba(0,0,0,.6), inset 0 0 0 2px #333;
+    flex-shrink: 0;
+  }
+  .screen {
+    width: 100%; height: 100%;
+    border-radius: 32px;
+    overflow: hidden;
+    position: relative;
+    background: linear-gradient(180deg, #1d5a48 0%, #123c30 45%, #0c2a21 100%);
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* ===== HUD ===== */
+  .hud {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 16px 16px 8px;
+  }
+  .pill {
+    background: rgba(0,0,0,.45);
+    border: 2px solid rgba(255,255,255,.18);
+    border-radius: 999px;
+    padding: 5px 14px 5px 8px;
+    color: #fff; font-weight: 900; font-size: 15px;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .btn-info {
+    width: 32px; height: 32px; border-radius: 50%;
+    background: linear-gradient(180deg, #2B8ED8, #1c6cab);
+    border: 2px solid #7cc4f4;
+    color: #fff; font-weight: 900; font-size: 16px;
+    cursor: pointer; box-shadow: 0 3px 0 #14507f;
+  }
+  .btn-info:active { transform: translateY(2px); box-shadow: none; }
+
+  /* ===== Title banner ===== */
+  .banner { text-align: center; padding: 2px 16px 0; }
+  .banner h1 {
+    font-size: 25px; font-weight: 900; color: #7df0c0;
+    text-shadow: 0 2px 0 #0a4d35, 0 4px 10px rgba(0,0,0,.5);
+    letter-spacing: .5px;
+  }
+  .banner .timer {
+    display: inline-block; margin-top: 4px;
+    background: rgba(0,0,0,.4); border-radius: 999px;
+    padding: 3px 14px; color: #ffb1b1; font-weight: 800; font-size: 13px;
+  }
+
+  /* ===== Square board ===== */
+  .board-wrap { padding: 14px 20px 0; }
+  .board {
+    width: 374px; height: 374px;
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    grid-template-rows: repeat(6, 1fr);
+    gap: 5px;
+    background: rgba(0,0,0,.35);
+    border: 4px solid #b8860b;
+    border-radius: 20px;
+    padding: 7px;
+    box-shadow: 0 10px 30px rgba(0,0,0,.5), inset 0 0 14px rgba(0,0,0,.4);
+  }
+  .cell {
+    border-radius: 10px;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    font-size: 21px; position: relative;
+    border: 2px solid rgba(0,0,0,.25);
+    box-shadow: inset 0 -3px 0 rgba(0,0,0,.22);
+    transition: transform .12s ease, box-shadow .12s ease, filter .12s ease;
+  }
+  .cell.common    { background: linear-gradient(180deg, #aeb6bf, #8a939d); }
+  .cell.rare      { background: linear-gradient(180deg, #5ecb56, #3a9a33); }
+  .cell.mythic    { background: linear-gradient(180deg, #5aa6ec, #2d72bd); }
+  .cell.legendary { background: linear-gradient(180deg, #ffd35e, #d9a32e); }
+  .cell.mythic.corner {
+    border: 2px solid #bfe2ff;
+    box-shadow: 0 0 12px rgba(91,166,236,.8), inset 0 -3px 0 rgba(0,0,0,.22);
+    font-size: 24px;
+  }
+  .cell.mythic.corner::after {
+    content: "★"; position: absolute; top: 1px; right: 4px;
+    font-size: 10px; color: #eaf6ff;
+  }
+  .cell.active {
+    transform: scale(1.14);
+    filter: brightness(1.35);
+    box-shadow: 0 0 16px 4px rgba(255,255,255,.85), inset 0 -3px 0 rgba(0,0,0,.22);
+    z-index: 3;
+  }
+  @keyframes win-pulse {
+    0%,100% { transform: scale(1.14); box-shadow: 0 0 16px 4px rgba(255,255,255,.85); }
+    50% { transform: scale(1.3); box-shadow: 0 0 28px 10px rgba(255,255,255,1); }
+  }
+  .cell.winner { animation: win-pulse .45s ease-in-out 4; z-index: 4; }
+
+  /* center panel inside the ring */
+  .center {
+    grid-column: 2 / 6; grid-row: 2 / 6;
+    background: radial-gradient(circle at 50% 30%, #1d6b54, #0d3a2c 80%);
+    border: 3px solid #b8860b;
+    border-radius: 14px;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    gap: 6px; padding: 10px; text-align: center;
+  }
+  .center .logo { font-size: 34px; }
+  .center .name { font-size: 17px; font-weight: 900; color: #ffd95e; text-shadow: 0 2px 0 rgba(0,0,0,.4); }
+  .center .sub { font-size: 11px; font-weight: 800; color: #aef0d2; line-height: 1.4; }
+  .center .sub b { color: #7df0c0; }
+
+  /* ===== Pity strip ===== */
+  .pity-strip { padding: 12px 26px 0; text-align: center; }
+  .pity-label { color: #aef0d2; font-size: 13px; font-weight: 800; margin-bottom: 5px; }
+  .pity-label b { color: #7df0c0; }
+  .pity-bar {
+    height: 16px; border-radius: 999px; background: rgba(0,0,0,.5);
+    border: 2px solid rgba(255,255,255,.15); overflow: hidden;
+  }
+  .pity-fill {
+    height: 100%; width: 0%;
+    background: linear-gradient(90deg, #2d72bd, #5aa6ec);
+    border-radius: 999px; transition: width .4s ease;
+  }
+
+  /* ===== Spin button ===== */
+  .controls { margin-top: auto; padding: 12px 26px 26px; }
+  .skip-row {
+    display: flex; align-items: center; justify-content: center; gap: 7px;
+    color: #aef0d2; font-size: 12.5px; font-weight: 800;
+    margin-bottom: 9px; cursor: pointer; user-select: none;
+  }
+  .skip-row input { width: 16px; height: 16px; accent-color: #4cb944; cursor: pointer; }
+  .btn-spin {
+    width: 100%; padding: 15px 18px;
+    border: none; border-radius: 18px;
+    background: linear-gradient(180deg, #5ecb56, #338a2d);
+    box-shadow: 0 5px 0 #1f5c1b;
+    font-family: inherit; font-weight: 900; font-size: 19px; color: #fff;
+    cursor: pointer; text-shadow: 0 1px 2px rgba(0,0,0,.35);
+    display: flex; align-items: center; justify-content: center; gap: 10px;
+  }
+  .btn-spin:active:not(:disabled) { transform: translateY(3px); box-shadow: none; }
+  .btn-spin:disabled { filter: grayscale(.4) brightness(.8); cursor: not-allowed; }
+  .btn-spin.broke { background: linear-gradient(180deg, #e64545, #a82525); box-shadow: 0 5px 0 #6e1414; }
+  .spin-count { text-align: center; color: #aef0d2; font-weight: 800; font-size: 13px; margin-top: 8px; }
+  @keyframes shake { 0%,100% { transform: translateX(0); } 25% { transform: translateX(-6px); } 75% { transform: translateX(6px); } }
+  .btn-spin.shake { animation: shake .3s ease 2; }
+
+  /* ===== Modals ===== */
+  .overlay {
+    position: absolute; inset: 0; background: rgba(0,0,0,.65);
+    display: flex; align-items: center; justify-content: center; z-index: 20;
+  }
+  .overlay.hidden { display: none; }
+  .modal {
+    width: 330px; background: var(--cream);
+    border: 4px solid var(--wood);
+    border-radius: 22px; padding: 18px 18px 20px;
+    box-shadow: 0 18px 50px rgba(0,0,0,.55);
+  }
+  .modal h2 { font-size: 19px; font-weight: 900; color: var(--wood-dk); text-align: center; margin-bottom: 12px; }
+  .odds-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .odds-table th, .odds-table td { padding: 6px 8px; text-align: left; border-bottom: 1px solid #e8d9b8; color: #4a3a1a; font-weight: 700; }
+  .odds-table th { font-weight: 900; color: var(--wood-dk); }
+  .tier-dot { display: inline-block; width: 11px; height: 11px; border-radius: 50%; margin-right: 6px; vertical-align: -1px; }
+  .odds-note {
+    margin-top: 12px; background: #f3e4c2; border-radius: 12px; padding: 10px 12px;
+    font-size: 12.5px; font-weight: 800; color: #5b3a00; line-height: 1.5;
+  }
+  .btn-close {
+    margin: 14px auto 0; display: block; padding: 10px 34px;
+    background: linear-gradient(180deg,#5ecb56,#338a2d); box-shadow: 0 4px 0 #1f5c1b;
+    border: none; border-radius: 14px; color: #fff; font-family: inherit;
+    font-weight: 900; font-size: 15px; cursor: pointer;
+  }
+  .btn-close:active { transform: translateY(2px); box-shadow: none; }
+
+  .reward-card { text-align: center; }
+  .reward-card .badge {
+    display: inline-block; padding: 3px 16px; border-radius: 999px;
+    color: #fff; font-weight: 900; font-size: 12px; letter-spacing: 1px; text-transform: uppercase;
+  }
+  .reward-card .r-icon { font-size: 64px; margin: 12px 0 6px; filter: drop-shadow(0 4px 8px rgba(0,0,0,.25)); }
+  .reward-card .r-name { font-size: 18px; font-weight: 900; color: var(--wood-dk); }
+  .reward-card .r-pity { font-size: 12px; font-weight: 800; color: #2d72bd; margin-top: 4px; }
+  @keyframes pop-in { from { transform: scale(.6); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+  .modal.pop { animation: pop-in .35s cubic-bezier(.34,1.56,.64,1); }
+
+  /* ===== Side panel ===== */
+  .side { width: 380px; color: #cfeede; }
+  .side h3 { font-size: 15px; font-weight: 900; color: #7df0c0; margin: 0 0 8px; }
+  .panel {
+    background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.12);
+    border-radius: 14px; padding: 14px 16px; margin-bottom: 18px;
+  }
+  .panel pre {
+    font-size: 11px; line-height: 1.45; color: #b9e8a7;
+    white-space: pre-wrap; word-break: break-word; max-height: 330px; overflow: auto;
+  }
+  .log { max-height: 220px; overflow: auto; font-size: 12px; line-height: 1.6; }
+  .log .ev { color: #b9d4f6; }
+  .log .warn { color: #f6c8b9; }
+  .log .done { color: #b9f6c8; font-weight: 800; }
+  .log .db { color: #d9b9f6; font-size: 11px; word-break: break-all; }
+  .dev-row { display: flex; gap: 8px; flex-wrap: wrap; }
+  .btn-dev {
+    padding: 8px 14px; border-radius: 10px; border: 1px solid rgba(255,255,255,.25);
+    background: rgba(255,255,255,.08); color: #fff; font-family: inherit;
+    font-weight: 800; font-size: 12px; cursor: pointer;
+  }
+  .btn-dev:hover { background: rgba(255,255,255,.18); }
+</style>
+</head>
+<body>
+
+<div class="phone">
+  <div class="screen">
+    <div class="hud">
+      <div class="pill">🪙 <span id="hud-coins">10,000</span></div>
+      <button class="btn-info" id="btn-info" aria-label="Odds info">i</button>
+    </div>
+
+    <div class="banner">
+      <h1>🎲 LUCKY SQUARE</h1>
+      <span class="timer">⏱ Ends in 6d 14h</span>
+    </div>
+
+    <div class="board-wrap">
+      <div class="board" id="board">
+        <div class="center">
+          <div class="logo">🎲</div>
+          <div class="name">LUCKY SQUARE</div>
+          <div class="sub">Corners hold <b>MYTHIC</b> prizes<br>Guaranteed <b>MYTHIC</b> prize every <b id="center-pity">25</b> spins</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="pity-strip">
+      <div class="pity-label">Guaranteed <b>MYTHIC</b> prize every <b id="pity-every">25</b> spins · next in <b id="pity-left">25</b></div>
+      <div class="pity-bar"><div class="pity-fill" id="pity-fill"></div></div>
+    </div>
+
+    <div class="controls">
+      <label class="skip-row"><input type="checkbox" id="chk-skip"> Skip animation — instant rewards</label>
+      <button class="btn-spin" id="btn-spin">
+        <span>SPIN</span> <span>🪙 <span id="spin-cost">200</span></span>
+      </button>
+      <div class="spin-count" id="spin-count">Total spins: 0</div>
+    </div>
+
+    <!-- Odds modal -->
+    <div class="overlay hidden" id="ov-info" role="dialog" aria-modal="true">
+      <div class="modal">
+        <h2>ⓘ Drop Rates &amp; Cost</h2>
+        <table class="odds-table" id="odds-table"></table>
+        <div class="odds-note" id="odds-note"></div>
+        <button class="btn-close" data-close="ov-info">OK</button>
+      </div>
+    </div>
+
+    <!-- Reward modal -->
+    <div class="overlay hidden" id="ov-reward" role="dialog" aria-modal="true">
+      <div class="modal pop reward-card">
+        <span class="badge" id="rw-badge">RARE</span>
+        <div class="r-icon" id="rw-icon">⚡</div>
+        <div class="r-name" id="rw-name">25 Energy</div>
+        <div class="r-pity hidden" id="rw-pity">★ Pity guarantee triggered</div>
+        <button class="btn-close" data-close="ov-reward">COLLECT</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="side">
+  <div class="panel">
+    <h3>📡 Kinoa Remote Config</h3>
+    <pre id="cfg-pre"></pre>
+  </div>
+  <div class="panel">
+    <h3>📋 Event Log</h3>
+    <div class="log" id="log"></div>
+  </div>
+  <div class="panel">
+    <h3>🛠 Dev Controls</h3>
+    <div class="dev-row">
+      <button class="btn-dev" id="dev-reset">↺ Reset</button>
+      <button class="btn-dev" id="dev-coins">+10,000 🪙</button>
+      <button class="btn-dev" id="dev-pity">⏩ Set pity to 19/20</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  // ===== Config (mirrors PRDs/gacha-spinners.md → LuckySquare) =====
+  const CONFIG = {
+    IsWorking: true,
+    EventId: "lucky_square_01",
+    DurationH: 168,
+    SpinCost: 200,
+    MythicPityCount: 25,
+    Tiers: [
+      { Id: "common",    Color: "gray",   Weight: 50, Pool: ["energy_10", "coin_100", "timeskip_15m"] },
+      { Id: "rare",      Color: "green",  Weight: 30, Pool: ["energy_25", "coin_250", "chain_breaker"] },
+      { Id: "mythic",    Color: "blue",   Weight: 5,  Pool: ["ue_30m", "merge_stone", "10_07", "20_06"] },
+      { Id: "legendary", Color: "yellow", Weight: 15, Pool: ["energy_50", "coin_600", "timeskip_3h"] }
+    ]
+  };
+
+  const ITEMS = {
+    energy_10:     { name: "10 Energy",            icon: "⚡" },
+    energy_25:     { name: "25 Energy",            icon: "⚡" },
+    energy_50:     { name: "50 Energy",            icon: "⚡" },
+    coin_100:      { name: "100 Coins",            icon: "🪙" },
+    coin_250:      { name: "250 Coins",            icon: "🪙" },
+    coin_600:      { name: "600 Coins",            icon: "🪙" },
+    timeskip_15m:  { name: "Time Skipper 15m",     icon: "⏳" },
+    timeskip_3h:   { name: "Time Skipper 3h",      icon: "⌛" },
+    chain_breaker: { name: "Chain Breaker",        icon: "⛓️" },
+    merge_stone:   { name: "Merge Stone",          icon: "🔮" },
+    ue_30m:        { name: "Unlimited Energy 30m", icon: "♾️" },
+    "10_07":       { name: "Cleaning Set T7",      icon: "🧹" },
+    "20_06":       { name: "Kitchen Cabinet T6",   icon: "🗄️" }
+  };
+
+  const TIER_COLORS = {
+    common:    "#9aa3ad",
+    rare:      "#4cb944",
+    mythic:    "#3b8de0",
+    legendary: "#f4c33b"
+  };
+  const TIER_NAMES = { common: "Common", rare: "Rare", mythic: "Mythic", legendary: "Legendary" };
+
+  // Perimeter of a 6×6 grid, clockwise from top-left: 20 cells. Corners = 0, 5, 10, 15.
+  const TRACK = [];
+  for (let c = 0; c <= 5; c++) TRACK.push([0, c]);          // top row, L→R (0-5)
+  for (let r = 1; r <= 5; r++) TRACK.push([r, 5]);          // right col, T→B (6-10)
+  for (let c = 4; c >= 0; c--) TRACK.push([5, c]);          // bottom row, R→L (11-15)
+  for (let r = 4; r >= 1; r--) TRACK.push([r, 0]);          // left col, B→T (16-19)
+  const CORNERS = [0, 5, 10, 15];
+
+  // Each cell shows a CONCRETE prize — landing on it awards exactly that item.
+  // 4 mythic corners (one per mythic pool item), 8 common, 5 rare, 3 legendary on edges.
+  const CELLS = [
+    { tier: "mythic",    item: "merge_stone" },   // 0  corner
+    { tier: "common",    item: "energy_10" },
+    { tier: "rare",      item: "energy_25" },
+    { tier: "common",    item: "coin_100" },
+    { tier: "legendary", item: "energy_50" },
+    { tier: "mythic",    item: "ue_30m" },        // 5  corner
+    { tier: "common",    item: "timeskip_15m" },
+    { tier: "rare",      item: "coin_250" },
+    { tier: "common",    item: "energy_10" },
+    { tier: "rare",      item: "chain_breaker" },
+    { tier: "mythic",    item: "10_07" },         // 10 corner
+    { tier: "common",    item: "coin_100" },
+    { tier: "legendary", item: "coin_600" },
+    { tier: "common",    item: "timeskip_15m" },
+    { tier: "rare",      item: "energy_25" },
+    { tier: "mythic",    item: "20_06" },         // 15 corner
+    { tier: "common",    item: "energy_10" },
+    { tier: "legendary", item: "timeskip_3h" },
+    { tier: "common",    item: "coin_100" },
+    { tier: "rare",      item: "coin_250" }
+  ];
+
+  // ===== State =====
+  let coins, totalSpins, pityCounter, spinning;
+  const cellEls = [];
+
+  const $ = id => document.getElementById(id);
+  const fmt = n => n.toLocaleString("en-US");
+
+  function log(msg, cls = "ev") {
+    const d = document.createElement("div");
+    d.className = cls;
+    d.textContent = `[${new Date().toLocaleTimeString()}] ${msg}`;
+    $("log").prepend(d);
+  }
+
+  // ===== Board rendering =====
+  function buildBoard() {
+    const board = $("board");
+    TRACK.forEach(([r, c], i) => {
+      const cell = document.createElement("div");
+      cell.className = `cell ${CELLS[i].tier}` + (CORNERS.includes(i) ? " corner" : "");
+      cell.style.gridRow = r + 1;
+      cell.style.gridColumn = c + 1;
+      cell.textContent = ITEMS[CELLS[i].item].icon;
+      cell.title = ITEMS[CELLS[i].item].name;
+      board.appendChild(cell);
+      cellEls.push(cell);
+    });
+  }
+
+  // ===== Odds modal =====
+  function buildOdds() {
+    const total = CONFIG.Tiers.reduce((s, t) => s + t.Weight, 0);
+    let html = "<tr><th>Tier</th><th>Chance</th><th>Rewards</th></tr>";
+    CONFIG.Tiers.forEach(t => {
+      const pct = (t.Weight / total * 100).toFixed(0);
+      const names = t.Pool.map(p => ITEMS[p].name).join(", ");
+      html += `<tr><td><span class="tier-dot" style="background:${TIER_COLORS[t.Id]}"></span>${TIER_NAMES[t.Id]}</td><td>${pct}%</td><td>${names}</td></tr>`;
+    });
+    $("odds-table").innerHTML = html;
+    $("odds-note").innerHTML =
+      `💠 Mythic prizes sit on the <b>4 corners</b> — guaranteed <b>MYTHIC</b> prize every ` +
+      `<b>${CONFIG.MythicPityCount} spins</b> (counter resets on any Mythic).<br>` +
+      `Every spin costs <b>🪙 ${fmt(CONFIG.SpinCost)}</b> — no spin limit.`;
+  }
+
+  // ===== Spin logic =====
+  function rollTier() {
+    const total = CONFIG.Tiers.reduce((s, t) => s + t.Weight, 0);
+    let r = Math.random() * total;
+    for (const t of CONFIG.Tiers) { if ((r -= t.Weight) < 0) return t; }
+    return CONFIG.Tiers[0];
+  }
+
+  function render() {
+    $("hud-coins").textContent = fmt(coins);
+    $("spin-cost").textContent = fmt(CONFIG.SpinCost);
+    $("spin-count").textContent = `Total spins: ${totalSpins}`;
+    $("pity-left").textContent = CONFIG.MythicPityCount - pityCounter;
+    $("pity-fill").style.width = (pityCounter / CONFIG.MythicPityCount * 100) + "%";
+    const btn = $("btn-spin");
+    btn.disabled = spinning;
+    btn.classList.toggle("broke", coins < CONFIG.SpinCost);
+  }
+
+  function spin() {
+    if (spinning) return;
+    if (coins < CONFIG.SpinCost) {
+      log(`Not enough coins (need ${fmt(CONFIG.SpinCost)}) — would open coin shop`, "warn");
+      $("btn-spin").classList.add("shake");
+      setTimeout(() => $("btn-spin").classList.remove("shake"), 700);
+      return;
+    }
+    coins -= CONFIG.SpinCost;
+    spinning = true;
+    totalSpins++;
+
+    // pity check: this spin is forced Mythic if 19 spins passed without one
+    const pityHit = pityCounter >= CONFIG.MythicPityCount - 1;
+    let tier = pityHit
+      ? CONFIG.Tiers.find(t => t.Id === "mythic")
+      : rollTier();
+    const isMythic = tier.Id === "mythic";
+
+    // pick a target cell of the rolled tier (mythic → a corner)
+    const candidates = CELLS.map((c, i) => c.tier === tier.Id ? i : -1).filter(i => i >= 0);
+    const target = candidates[Math.floor(Math.random() * candidates.length)];
+
+    log(`Spin ${totalSpins}: paid ${fmt(CONFIG.SpinCost)} coins${pityHit ? " — PITY SPIN (forced Mythic)" : ""}`, pityHit ? "warn" : "ev");
+    render();
+
+    // skip animation (persistent player setting): jump straight to the result
+    if ($("chk-skip").checked) {
+      cellEls.forEach(c => c.classList.remove("active"));
+      cellEls[target].classList.add("active");
+      setTimeout(() => finish(target, tier, pityHit), 120);
+      return;
+    }
+
+    // runner: 2 full laps + distance to target, decelerating
+    // final position = steps % TRACK.length, so steps must end exactly on target
+    let pos = 0;
+    const steps = 2 * TRACK.length + target;
+    let step = 0;
+    function hop() {
+      cellEls.forEach(c => c.classList.remove("active"));
+      pos = step % TRACK.length;
+      cellEls[pos].classList.add("active");
+      step++;
+      if (step <= steps) {
+        const t = step / steps;
+        const delay = 45 + 320 * t * t * t;   // ease-out cubic deceleration
+        setTimeout(hop, delay);
+      } else {
+        finish(pos, tier, pityHit);
+      }
+    }
+    hop();
+  }
+
+  function finish(cellIdx, tier, pityHit) {
+    cellEls[cellIdx].classList.add("winner");
+    setTimeout(() => cellEls[cellIdx].classList.remove("winner"), 2000);
+
+    if (tier.Id === "mythic") {
+      pityCounter = 0;
+      log(pityHit ? "Pity Mythic delivered — counter reset" : "Natural Mythic! Counter reset", "done");
+    } else {
+      pityCounter++;
+    }
+
+    // award exactly the prize shown on the landed cell
+    const itemId = CELLS[cellIdx].item;
+    log(`Result: ${TIER_NAMES[tier.Id]} → ${ITEMS[itemId].name}`);
+
+    // what the client persists server-side on every spin
+    log("DB ► spins_log " + JSON.stringify({
+      event_id: CONFIG.EventId,
+      spin_no: totalSpins,
+      cost_coins: CONFIG.SpinCost,
+      result_tier: tier.Id,
+      cell_idx: cellIdx,
+      item_id: itemId,
+      pity_counter: pityCounter,
+      pity_triggered: pityHit,
+      coins_after: coins,
+      ts: new Date().toISOString()
+    }), "db");
+
+    $("rw-badge").textContent = TIER_NAMES[tier.Id];
+    $("rw-badge").style.background = TIER_COLORS[tier.Id];
+    $("rw-icon").textContent = ITEMS[itemId].icon;
+    $("rw-name").textContent = ITEMS[itemId].name;
+    $("rw-pity").style.display = pityHit ? "block" : "none";
+    $("ov-reward").classList.remove("hidden");
+
+    spinning = false;
+    render();
+  }
+
+  // ===== Wiring =====
+  function reset() {
+    coins = 10000; totalSpins = 0; pityCounter = 0; spinning = false;
+    cellEls.forEach(c => c.classList.remove("active", "winner"));
+    render();
+    log("Event reset", "done");
+  }
+
+  $("btn-spin").addEventListener("click", spin);
+  $("btn-info").addEventListener("click", () => $("ov-info").classList.remove("hidden"));
+  document.querySelectorAll("[data-close]").forEach(b =>
+    b.addEventListener("click", () => $(b.dataset.close).classList.add("hidden")));
+  document.querySelectorAll(".overlay").forEach(ov =>
+    ov.addEventListener("click", e => { if (e.target === ov) ov.classList.add("hidden"); }));
+  $("dev-reset").addEventListener("click", reset);
+  $("dev-coins").addEventListener("click", () => { coins += 10000; render(); log("+10,000 coins (dev)"); });
+  $("dev-pity").addEventListener("click", () => {
+    pityCounter = CONFIG.MythicPityCount - 1;
+    render();
+    log("Pity set to 19/20 — next spin forces a Mythic corner (dev)", "warn");
+  });
+
+  // persistent skip-animation setting
+  const SKIP_KEY = "mergedom_gacha_skip_anim";
+  $("chk-skip").checked = localStorage.getItem(SKIP_KEY) === "1";
+  $("chk-skip").addEventListener("change", e => {
+    localStorage.setItem(SKIP_KEY, e.target.checked ? "1" : "0");
+    log(`Skip animation ${e.target.checked ? "ON" : "OFF"} — saved to player settings`);
+  });
+
+  $("cfg-pre").textContent = JSON.stringify({ LuckySquare: CONFIG }, null, 2);
+  $("pity-every").textContent = CONFIG.MythicPityCount;
+  $("center-pity").textContent = CONFIG.MythicPityCount;
+  buildBoard();
+  buildOdds();
+  coins = 10000; totalSpins = 0; pityCounter = 0; spinning = false;
+  render();
+  log("Lucky Square loaded — config from Kinoa", "done");
+</script>
+</body>
+</html>

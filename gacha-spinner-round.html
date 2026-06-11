@@ -1,0 +1,595 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mergedom — Jackpot Wheel (Round Gacha Spinner)</title>
+<style>
+  :root {
+    --c-common: #9aa3ad;
+    --c-common-dk: #6f7882;
+    --c-rare: #4cb944;
+    --c-rare-dk: #338a2d;
+    --c-mythic: #3b8de0;
+    --c-mythic-dk: #2563a8;
+    --c-legendary: #f4c33b;
+    --c-legendary-dk: #c2922a;
+    --wood: #6e4a1f;
+    --wood-dk: #4a2a0a;
+    --cream: #fff7e6;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: "Nunito Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    background: radial-gradient(circle at 50% 30%, #2c2436, #15101d 75%);
+    min-height: 100vh;
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    gap: 28px;
+    padding: 30px 20px;
+  }
+
+  /* ===== Phone frame ===== */
+  .phone {
+    width: 414px; height: 896px;
+    background: #111;
+    border-radius: 46px;
+    padding: 14px;
+    box-shadow: 0 30px 80px rgba(0,0,0,.6), inset 0 0 0 2px #333;
+    flex-shrink: 0;
+  }
+  .screen {
+    width: 100%; height: 100%;
+    border-radius: 32px;
+    overflow: hidden;
+    position: relative;
+    background: linear-gradient(180deg, #2a1a4a 0%, #1b1135 45%, #120b26 100%);
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* ===== HUD ===== */
+  .hud {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 16px 16px 8px;
+  }
+  .pill {
+    background: rgba(0,0,0,.45);
+    border: 2px solid rgba(255,255,255,.18);
+    border-radius: 999px;
+    padding: 5px 14px 5px 8px;
+    color: #fff; font-weight: 900; font-size: 15px;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .btn-info {
+    width: 32px; height: 32px; border-radius: 50%;
+    background: linear-gradient(180deg, #2B8ED8, #1c6cab);
+    border: 2px solid #7cc4f4;
+    color: #fff; font-weight: 900; font-size: 16px;
+    cursor: pointer; box-shadow: 0 3px 0 #14507f;
+  }
+  .btn-info:active { transform: translateY(2px); box-shadow: none; }
+
+  /* ===== Title banner ===== */
+  .banner { text-align: center; padding: 2px 16px 0; }
+  .banner h1 {
+    font-size: 25px; font-weight: 900; color: #ffd95e;
+    text-shadow: 0 2px 0 #7a4d00, 0 4px 10px rgba(0,0,0,.5);
+    letter-spacing: .5px;
+  }
+  .banner .timer {
+    display: inline-block; margin-top: 4px;
+    background: rgba(0,0,0,.4); border-radius: 999px;
+    padding: 3px 14px; color: #ffb1b1; font-weight: 800; font-size: 13px;
+  }
+
+  /* ===== Wheel ===== */
+  .wheel-zone { position: relative; width: 360px; height: 380px; margin: 8px auto 0; }
+  .pointer {
+    position: absolute; top: 2px; left: 50%; transform: translateX(-50%);
+    width: 0; height: 0; z-index: 6;
+    border-left: 15px solid transparent;
+    border-right: 15px solid transparent;
+    border-top: 26px solid #ff5252;
+    filter: drop-shadow(0 3px 3px rgba(0,0,0,.5));
+  }
+  .pointer::after {
+    content: ""; position: absolute; top: -24px; left: -8px;
+    width: 16px; height: 16px; border-radius: 50%; background: #ffd95e;
+  }
+  .wheel-rim {
+    position: absolute; inset: 14px 6px auto; width: 348px; height: 348px;
+    border-radius: 50%;
+    background: conic-gradient(#ffd95e, #b8860b, #ffd95e, #b8860b, #ffd95e, #b8860b, #ffd95e);
+    box-shadow: 0 10px 30px rgba(0,0,0,.6), inset 0 0 12px rgba(0,0,0,.4);
+    display: flex; align-items: center; justify-content: center;
+  }
+  .wheel {
+    width: 322px; height: 322px; border-radius: 50%;
+    position: relative;
+    transition: transform 4.2s cubic-bezier(.12,.75,.18,1);
+    box-shadow: inset 0 0 25px rgba(0,0,0,.45);
+  }
+  .seg-icon {
+    position: absolute; top: 50%; left: 50%;
+    width: 44px; height: 44px; margin: -22px 0 0 -22px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 26px; text-shadow: 0 2px 4px rgba(0,0,0,.5);
+  }
+  .hub {
+    position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%);
+    width: 128px; height: 128px; border-radius: 50%;
+    background: radial-gradient(circle at 50% 35%, #5b3fa8, #2d1d5e 75%);
+    border: 5px solid #ffd95e;
+    box-shadow: 0 0 26px rgba(255,217,94,.55), inset 0 0 16px rgba(0,0,0,.5);
+    z-index: 5;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    text-align: center;
+  }
+  .hub .jp-item { font-size: 42px; line-height: 1; filter: drop-shadow(0 0 8px rgba(255,217,94,.9)); }
+  .hub .jp-tier {
+    margin-top: 2px; background: var(--c-legendary); color: #5b3a00;
+    font-size: 10px; font-weight: 900; border-radius: 999px; padding: 1px 8px;
+  }
+  .hub .jp-name { color: #ffe9a8; font-size: 9px; font-weight: 800; margin-top: 2px; padding: 0 6px; }
+  @keyframes jackpot-flash {
+    0%,100% { box-shadow: 0 0 26px rgba(255,217,94,.55); }
+    50% { box-shadow: 0 0 70px 18px rgba(255,217,94,1); transform: translate(-50%,-50%) scale(1.12); }
+  }
+  .hub.flash { animation: jackpot-flash .5s ease-in-out 5; }
+
+  /* ===== Pity / guarantee strip ===== */
+  .pity-strip { padding: 10px 26px 0; text-align: center; }
+  .pity-label { color: #cdbdf5; font-size: 13px; font-weight: 800; margin-bottom: 5px; }
+  .pity-label b { color: #ffd95e; }
+  .pity-bar {
+    height: 16px; border-radius: 999px; background: rgba(0,0,0,.5);
+    border: 2px solid rgba(255,255,255,.15); overflow: hidden;
+  }
+  .pity-fill {
+    height: 100%; width: 0%;
+    background: linear-gradient(90deg, #8a5cf6, #ffd95e);
+    border-radius: 999px; transition: width .5s ease;
+  }
+
+  /* ===== Spin button ===== */
+  .controls { margin-top: auto; padding: 12px 26px 26px; }
+  .skip-row {
+    display: flex; align-items: center; justify-content: center; gap: 7px;
+    color: #cdbdf5; font-size: 12.5px; font-weight: 800;
+    margin-bottom: 9px; cursor: pointer; user-select: none;
+  }
+  .skip-row input { width: 16px; height: 16px; accent-color: #8a5cf6; cursor: pointer; }
+  .btn-spin {
+    width: 100%; padding: 15px 18px;
+    border: none; border-radius: 18px;
+    font-family: inherit; font-weight: 900; font-size: 19px; color: #fff;
+    cursor: pointer; text-shadow: 0 1px 2px rgba(0,0,0,.35);
+    display: flex; align-items: center; justify-content: center; gap: 10px;
+  }
+  .btn-spin small { font-size: 12px; font-weight: 800; opacity: .85; display: block; }
+  .btn-spin.tier-0 { background: linear-gradient(180deg,#5ecb56,#338a2d); box-shadow: 0 5px 0 #1f5c1b; }
+  .btn-spin.tier-1 { background: linear-gradient(180deg,#f4c33b,#c2922a); box-shadow: 0 5px 0 #8a6516; }
+  .btn-spin.tier-2 { background: linear-gradient(180deg,#f49a3b,#c26f2a); box-shadow: 0 5px 0 #8a4c16; }
+  .btn-spin.tier-3 { background: linear-gradient(180deg,#e64545,#a82525); box-shadow: 0 5px 0 #6e1414; }
+  .btn-spin.done  { background: linear-gradient(180deg,#8a5cf6,#5b3fa8); box-shadow: 0 5px 0 #3a2870; cursor: default; }
+  .btn-spin:active:not(.done):not(:disabled) { transform: translateY(3px); box-shadow: none !important; }
+  .btn-spin:disabled { filter: grayscale(.4) brightness(.8); cursor: not-allowed; }
+  .spin-count { text-align: center; color: #cdbdf5; font-weight: 800; font-size: 13px; margin-top: 8px; }
+
+  /* ===== Modals ===== */
+  .overlay {
+    position: absolute; inset: 0; background: rgba(0,0,0,.65);
+    display: flex; align-items: center; justify-content: center; z-index: 20;
+  }
+  .overlay.hidden { display: none; }
+  .modal {
+    width: 330px; background: var(--cream);
+    border: 4px solid var(--wood);
+    border-radius: 22px; padding: 18px 18px 20px;
+    box-shadow: 0 18px 50px rgba(0,0,0,.55);
+  }
+  .modal h2 { font-size: 19px; font-weight: 900; color: var(--wood-dk); text-align: center; margin-bottom: 12px; }
+  .odds-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .odds-table th, .odds-table td { padding: 6px 8px; text-align: left; border-bottom: 1px solid #e8d9b8; color: #4a3a1a; font-weight: 700; }
+  .odds-table th { font-weight: 900; color: var(--wood-dk); }
+  .tier-dot { display: inline-block; width: 11px; height: 11px; border-radius: 50%; margin-right: 6px; vertical-align: -1px; }
+  .odds-note {
+    margin-top: 12px; background: #f3e4c2; border-radius: 12px; padding: 10px 12px;
+    font-size: 12.5px; font-weight: 800; color: #5b3a00; line-height: 1.5;
+  }
+  .btn-close {
+    margin: 14px auto 0; display: block; padding: 10px 34px;
+    background: linear-gradient(180deg,#5ecb56,#338a2d); box-shadow: 0 4px 0 #1f5c1b;
+    border: none; border-radius: 14px; color: #fff; font-family: inherit;
+    font-weight: 900; font-size: 15px; cursor: pointer;
+  }
+  .btn-close:active { transform: translateY(2px); box-shadow: none; }
+
+  .reward-card { text-align: center; }
+  .reward-card .badge {
+    display: inline-block; padding: 3px 16px; border-radius: 999px;
+    color: #fff; font-weight: 900; font-size: 12px; letter-spacing: 1px; text-transform: uppercase;
+  }
+  .reward-card .r-icon { font-size: 64px; margin: 12px 0 6px; filter: drop-shadow(0 4px 8px rgba(0,0,0,.25)); }
+  .reward-card .r-name { font-size: 18px; font-weight: 900; color: var(--wood-dk); }
+  @keyframes pop-in { from { transform: scale(.6); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+  .modal.pop { animation: pop-in .35s cubic-bezier(.34,1.56,.64,1); }
+
+  /* ===== Side panel ===== */
+  .side { width: 380px; color: #d9cfee; }
+  .side h3 { font-size: 15px; font-weight: 900; color: #ffd95e; margin: 0 0 8px; }
+  .panel {
+    background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.12);
+    border-radius: 14px; padding: 14px 16px; margin-bottom: 18px;
+  }
+  .panel pre {
+    font-size: 11px; line-height: 1.45; color: #b9e8a7;
+    white-space: pre-wrap; word-break: break-word; max-height: 330px; overflow: auto;
+  }
+  .log { max-height: 220px; overflow: auto; font-size: 12px; line-height: 1.6; }
+  .log .ev { color: #b9d4f6; }
+  .log .warn { color: #f6c8b9; }
+  .log .done { color: #b9f6c8; font-weight: 800; }
+  .log .db { color: #d9b9f6; font-size: 11px; word-break: break-all; }
+  .dev-row { display: flex; gap: 8px; flex-wrap: wrap; }
+  .btn-dev {
+    padding: 8px 14px; border-radius: 10px; border: 1px solid rgba(255,255,255,.25);
+    background: rgba(255,255,255,.08); color: #fff; font-family: inherit;
+    font-weight: 800; font-size: 12px; cursor: pointer;
+  }
+  .btn-dev:hover { background: rgba(255,255,255,.18); }
+</style>
+</head>
+<body>
+
+<div class="phone">
+  <div class="screen">
+    <div class="hud">
+      <div class="pill">🪙 <span id="hud-coins">12,000</span></div>
+      <button class="btn-info" id="btn-info" aria-label="Odds info">i</button>
+    </div>
+
+    <div class="banner">
+      <h1>🎡 JACKPOT WHEEL</h1>
+      <span class="timer">⏱ Ends in 2d 14h</span>
+    </div>
+
+    <div class="wheel-zone">
+      <div class="pointer"></div>
+      <div class="wheel-rim">
+        <div class="wheel" id="wheel"></div>
+      </div>
+      <div class="hub" id="hub">
+        <div class="jp-item">🧹</div>
+        <div class="jp-tier">TIER 10</div>
+        <div class="jp-name">Cleaning Set MAX</div>
+      </div>
+    </div>
+
+    <div class="pity-strip">
+      <div class="pity-label">Jackpot <b>GUARANTEED</b> in <b id="pity-left">10</b> spins</div>
+      <div class="pity-bar"><div class="pity-fill" id="pity-fill"></div></div>
+    </div>
+
+    <div class="controls">
+      <label class="skip-row"><input type="checkbox" id="chk-skip"> Skip animation — instant rewards</label>
+      <button class="btn-spin tier-0" id="btn-spin">
+        <span>SPIN</span> <span>🪙 <span id="spin-cost">200</span></span>
+      </button>
+      <div class="spin-count" id="spin-count">Spin 1 / 10</div>
+    </div>
+
+    <!-- Odds modal -->
+    <div class="overlay hidden" id="ov-info" role="dialog" aria-modal="true">
+      <div class="modal">
+        <h2>ⓘ Drop Rates &amp; Cost</h2>
+        <table class="odds-table" id="odds-table"></table>
+        <div class="odds-note" id="odds-note"></div>
+        <button class="btn-close" data-close="ov-info">OK</button>
+      </div>
+    </div>
+
+    <!-- Reward modal -->
+    <div class="overlay hidden" id="ov-reward" role="dialog" aria-modal="true">
+      <div class="modal pop reward-card">
+        <span class="badge" id="rw-badge">RARE</span>
+        <div class="r-icon" id="rw-icon">⚡</div>
+        <div class="r-name" id="rw-name">25 Energy</div>
+        <button class="btn-close" data-close="ov-reward">COLLECT</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="side">
+  <div class="panel">
+    <h3>📡 Kinoa Remote Config</h3>
+    <pre id="cfg-pre"></pre>
+  </div>
+  <div class="panel">
+    <h3>📋 Event Log</h3>
+    <div class="log" id="log"></div>
+  </div>
+  <div class="panel">
+    <h3>🛠 Dev Controls</h3>
+    <div class="dev-row">
+      <button class="btn-dev" id="dev-reset">↺ Reset</button>
+      <button class="btn-dev" id="dev-coins">+10,000 🪙</button>
+      <button class="btn-dev" id="dev-jackpot">🎰 Force Jackpot Next Spin</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  // ===== Config (mirrors PRDs/gacha-spinners.md → JackpotWheel) =====
+  const CONFIG = {
+    IsWorking: true,
+    EventId: "jackpot_wheel_01",
+    DurationH: 72,
+    JackpotItem: "10_10",
+    JackpotPerSpinChance: 0.000001,
+    PitySpin: 10,
+    CostLadder: [200, 400, 600, 800, 1000, 1200, 1300, 1400, 1500, 1600],
+    Tiers: [
+      { Id: "common",    Color: "gray",   Weight: 60, Pool: ["energy_10", "coin_50", "timeskip_15m"] },
+      { Id: "rare",      Color: "green",  Weight: 25, Pool: ["energy_25", "coin_150", "chain_breaker"] },
+      { Id: "mythic",    Color: "blue",   Weight: 10, Pool: ["energy_50", "merge_stone", "20_05"] },
+      { Id: "legendary", Color: "yellow", Weight: 5,  Pool: ["energy_100", "ue_30m", "10_07"] }
+    ]
+  };
+
+  const ITEMS = {
+    energy_10:     { name: "10 Energy",            icon: "⚡" },
+    energy_25:     { name: "25 Energy",            icon: "⚡" },
+    energy_50:     { name: "50 Energy",            icon: "⚡" },
+    energy_100:    { name: "100 Energy",           icon: "⚡" },
+    coin_50:       { name: "50 Coins",             icon: "🪙" },
+    coin_150:      { name: "150 Coins",            icon: "🪙" },
+    timeskip_15m:  { name: "Time Skipper 15m",     icon: "⏳" },
+    chain_breaker: { name: "Chain Breaker",        icon: "⛓️" },
+    merge_stone:   { name: "Merge Stone",          icon: "🔮" },
+    ue_30m:        { name: "Unlimited Energy 30m", icon: "♾️" },
+    "20_05":       { name: "Kitchen Cabinet T5",   icon: "🗄️" },
+    "10_07":       { name: "Cleaning Set T7",      icon: "🧹" },
+    "10_10":       { name: "Cleaning Set TIER 10", icon: "🧹" }
+  };
+
+  const TIER_COLORS = {
+    common:    ["#9aa3ad", "#6f7882"],
+    rare:      ["#4cb944", "#338a2d"],
+    mythic:    ["#3b8de0", "#2563a8"],
+    legendary: ["#f4c33b", "#c2922a"],
+    jackpot:   ["#ffea7a", "#b8860b"]
+  };
+  const TIER_NAMES = { common: "Common", rare: "Rare", mythic: "Mythic", legendary: "Legendary", jackpot: "Jackpot" };
+
+  // Segments — each shows a CONCRETE prize; landing on it awards exactly that item.
+  // Tier is rolled by weights first, then a segment of that tier is picked.
+  // The jackpot is a normal-size gold segment — visual size ≠ odds (1-in-1,000,000 roll or spin-10 pity).
+  const SEG_DEG = 360 / 9;
+  const SEGMENTS = [
+    { tier: "jackpot",   item: "10_10",         deg: SEG_DEG },
+    { tier: "common",    item: "coin_50",       deg: SEG_DEG },
+    { tier: "rare",      item: "energy_25",     deg: SEG_DEG },
+    { tier: "common",    item: "timeskip_15m",  deg: SEG_DEG },
+    { tier: "mythic",    item: "merge_stone",   deg: SEG_DEG },
+    { tier: "common",    item: "energy_10",     deg: SEG_DEG },
+    { tier: "rare",      item: "chain_breaker", deg: SEG_DEG },
+    { tier: "legendary", item: "ue_30m",        deg: SEG_DEG },
+    { tier: "mythic",    item: "20_05",         deg: SEG_DEG }
+  ];
+  // cumulative start angle per segment
+  let __acc = 0;
+  SEGMENTS.forEach(s => { s.start = __acc; __acc += s.deg; });
+
+  // ===== State =====
+  let coins, spinNumber, claimed, spinning, forceJackpot, wheelAngle;
+
+  const $ = id => document.getElementById(id);
+  const fmt = n => n.toLocaleString("en-US");
+
+  function log(msg, cls = "ev") {
+    const d = document.createElement("div");
+    d.className = cls;
+    d.textContent = `[${new Date().toLocaleTimeString()}] ${msg}`;
+    $("log").prepend(d);
+  }
+
+  // ===== Wheel rendering =====
+  function buildWheel() {
+    const stops = SEGMENTS.map(s =>
+      `${TIER_COLORS[s.tier][0]} ${s.start}deg ${s.start + s.deg}deg`).join(", ");
+    const w = $("wheel");
+    w.style.background = `conic-gradient(${stops})`;
+    w.innerHTML = "";
+    SEGMENTS.forEach(s => {
+      const icon = document.createElement("div");
+      icon.className = "seg-icon";
+      icon.textContent = ITEMS[s.item].icon;
+      icon.title = ITEMS[s.item].name;
+      if (s.tier === "jackpot") icon.style.filter = "drop-shadow(0 0 6px rgba(255,217,94,.95))";
+      const ang = s.start + s.deg / 2;
+      icon.style.transform = `rotate(${ang}deg) translateY(-118px)`;
+      w.appendChild(icon);
+    });
+  }
+
+  // ===== Odds modal =====
+  function buildOdds() {
+    const total = CONFIG.Tiers.reduce((s, t) => s + t.Weight, 0);
+    let html = "<tr><th>Tier</th><th>Chance</th><th>Rewards</th></tr>";
+    CONFIG.Tiers.forEach(t => {
+      const pct = (t.Weight / total * 100).toFixed(0);
+      const names = t.Pool.map(p => ITEMS[p].name).join(", ");
+      html += `<tr><td><span class="tier-dot" style="background:${TIER_COLORS[t.Id][0]}"></span>${TIER_NAMES[t.Id]}</td><td>${pct}%</td><td>${names}</td></tr>`;
+    });
+    $("odds-table").innerHTML = html;
+    const totalCost = CONFIG.CostLadder.reduce((a, b) => a + b, 0);
+    const jpOdds = Math.round(1 / CONFIG.JackpotPerSpinChance);
+    $("odds-note").innerHTML =
+      `🧹 Jackpot (${ITEMS[CONFIG.JackpotItem].name}): 1 in ${fmt(jpOdds)} per spin — ` +
+      `<b>guaranteed on spin ${CONFIG.PitySpin}</b>.<br>` +
+      `Total cost to guarantee: <b>🪙 ${fmt(totalCost)}</b>.`;
+  }
+
+  // ===== Spin logic =====
+  function rollTier() {
+    const total = CONFIG.Tiers.reduce((s, t) => s + t.Weight, 0);
+    let r = Math.random() * total;
+    for (const t of CONFIG.Tiers) { if ((r -= t.Weight) < 0) return t; }
+    return CONFIG.Tiers[0];
+  }
+
+  function costClass(cost) {
+    if (cost < 500) return "tier-0";
+    if (cost < 1000) return "tier-1";
+    if (cost < 1500) return "tier-2";
+    return "tier-3";
+  }
+
+  function render() {
+    $("hud-coins").textContent = fmt(coins);
+    const btn = $("btn-spin");
+    if (claimed) {
+      btn.className = "btn-spin done";
+      btn.innerHTML = "<span>🎉 JACKPOT CLAIMED</span>";
+      btn.disabled = true;
+      $("spin-count").textContent = "Event complete";
+      $("pity-left").textContent = "0";
+      $("pity-fill").style.width = "100%";
+      return;
+    }
+    const cost = CONFIG.CostLadder[spinNumber - 1];
+    btn.className = "btn-spin " + costClass(cost);
+    btn.innerHTML = `<span>SPIN</span> <span>🪙 <span id="spin-cost">${fmt(cost)}</span></span>`;
+    btn.disabled = spinning;
+    $("spin-count").textContent = `Spin ${spinNumber} / ${CONFIG.PitySpin}`;
+    $("pity-left").textContent = CONFIG.PitySpin - spinNumber + 1;
+    $("pity-fill").style.width = ((spinNumber - 1) / CONFIG.PitySpin * 100) + "%";
+  }
+
+  function spin() {
+    if (spinning || claimed) return;
+    const cost = CONFIG.CostLadder[spinNumber - 1];
+    if (coins < cost) { log(`Not enough coins for spin ${spinNumber} (need ${fmt(cost)})`, "warn"); return; }
+    coins -= cost;
+    spinning = true;
+    render();
+
+    const isPity = spinNumber === CONFIG.PitySpin;
+    const isEarlyJp = forceJackpot || Math.random() < CONFIG.JackpotPerSpinChance;
+    forceJackpot = false;
+    const jackpot = isPity || isEarlyJp;
+
+    let targetSegIdx, tier;
+    if (jackpot) {
+      targetSegIdx = SEGMENTS.findIndex(s => s.tier === "jackpot");
+    } else {
+      tier = rollTier();
+      const candidates = SEGMENTS.map((s, i) => s.tier === tier.Id ? i : -1).filter(i => i >= 0);
+      targetSegIdx = candidates[Math.floor(Math.random() * candidates.length)];
+    }
+
+    const segDef = SEGMENTS[targetSegIdx];
+    const targetAngle = 360 - (segDef.start + segDef.deg / 2);
+    const turns = 5 * 360;
+    wheelAngle += turns + ((targetAngle - (wheelAngle % 360)) + 360) % 360;
+
+    // skip animation (persistent player setting): snap the wheel, resolve instantly
+    const skipAnim = $("chk-skip").checked;
+    const wheelEl = $("wheel");
+    if (skipAnim) {
+      wheelEl.style.transition = "none";
+      wheelEl.style.transform = `rotate(${wheelAngle}deg)`;
+      void wheelEl.offsetHeight;   // commit the snap before re-enabling the transition
+      wheelEl.style.transition = "";
+    } else {
+      wheelEl.style.transform = `rotate(${wheelAngle}deg)`;
+    }
+    log(`Spin ${spinNumber}: paid ${fmt(cost)} coins`);
+
+    setTimeout(() => {
+      spinning = false;
+      const thisSpin = spinNumber;
+      let resultTier, itemId;
+      if (jackpot) {
+        claimed = true;
+        resultTier = "jackpot";
+        itemId = CONFIG.JackpotItem;
+        $("hub").classList.add("flash");
+        log(isPity ? `PITY HIT — spin ${CONFIG.PitySpin}: JACKPOT guaranteed!` : "EARLY JACKPOT (beat 1-in-1,000,000 odds)!", "done");
+        showReward({ Id: "legendary" }, CONFIG.JackpotItem, true);
+      } else {
+        // award exactly the prize shown on the landed segment
+        resultTier = tier.Id;
+        itemId = SEGMENTS[targetSegIdx].item;
+        log(`Result: ${TIER_NAMES[tier.Id]} → ${ITEMS[itemId].name}`);
+        showReward(tier, itemId, false);
+        spinNumber++;
+      }
+      // what the client persists server-side on every spin
+      log("DB ► spins_log " + JSON.stringify({
+        event_id: CONFIG.EventId,
+        spin_no: thisSpin,
+        cost_coins: cost,
+        result_tier: resultTier,
+        item_id: itemId,
+        pity_progress: `${thisSpin}/${CONFIG.PitySpin}`,
+        jackpot_claimed: claimed,
+        coins_after: coins,
+        ts: new Date().toISOString()
+      }), "db");
+      render();
+    }, skipAnim ? 120 : 4300);
+  }
+
+  function showReward(tier, itemId, isJackpot) {
+    const [bg] = TIER_COLORS[tier.Id];
+    $("rw-badge").textContent = isJackpot ? "★ JACKPOT ★" : TIER_NAMES[tier.Id];
+    $("rw-badge").style.background = isJackpot ? "linear-gradient(180deg,#f4c33b,#c2922a)" : bg;
+    $("rw-icon").textContent = ITEMS[itemId].icon;
+    $("rw-name").textContent = ITEMS[itemId].name;
+    $("ov-reward").classList.remove("hidden");
+  }
+
+  // ===== Wiring =====
+  function reset() {
+    coins = 12000; spinNumber = 1; claimed = false; spinning = false;
+    forceJackpot = false; wheelAngle = 0;
+    $("wheel").style.transition = "none";
+    $("wheel").style.transform = "rotate(0deg)";
+    requestAnimationFrame(() => { $("wheel").style.transition = ""; });
+    $("hub").classList.remove("flash");
+    render();
+    log("Event reset", "done");
+  }
+
+  $("btn-spin").addEventListener("click", spin);
+  $("btn-info").addEventListener("click", () => $("ov-info").classList.remove("hidden"));
+  document.querySelectorAll("[data-close]").forEach(b =>
+    b.addEventListener("click", () => $(b.dataset.close).classList.add("hidden")));
+  document.querySelectorAll(".overlay").forEach(ov =>
+    ov.addEventListener("click", e => { if (e.target === ov) ov.classList.add("hidden"); }));
+  $("dev-reset").addEventListener("click", reset);
+  $("dev-coins").addEventListener("click", () => { coins += 10000; render(); log("+10,000 coins (dev)"); });
+  $("dev-jackpot").addEventListener("click", () => { forceJackpot = true; log("Next spin will hit the jackpot (dev)", "warn"); });
+
+  // persistent skip-animation setting (shared with Lucky Square)
+  const SKIP_KEY = "mergedom_gacha_skip_anim";
+  $("chk-skip").checked = localStorage.getItem(SKIP_KEY) === "1";
+  $("chk-skip").addEventListener("change", e => {
+    localStorage.setItem(SKIP_KEY, e.target.checked ? "1" : "0");
+    log(`Skip animation ${e.target.checked ? "ON" : "OFF"} — saved to player settings`);
+  });
+
+  $("cfg-pre").textContent = JSON.stringify({ JackpotWheel: CONFIG }, null, 2);
+  buildWheel();
+  buildOdds();
+  coins = 12000; spinNumber = 1; claimed = false; spinning = false; forceJackpot = false; wheelAngle = 0;
+  render();
+  log("Jackpot Wheel loaded — config from Kinoa", "done");
+</script>
+</body>
+</html>

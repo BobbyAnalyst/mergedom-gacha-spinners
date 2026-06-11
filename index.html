@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mergedom — Gacha Spinners: Feature Report</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: "Nunito Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    background: radial-gradient(circle at 50% 0%, #241c33, #120e1c 70%);
+    color: #d9cfee;
+    min-height: 100vh;
+    padding: 48px 20px 80px;
+  }
+  .wrap { max-width: 1060px; margin: 0 auto; }
+  header { text-align: center; margin-bottom: 44px; }
+  header h1 {
+    font-size: 34px; font-weight: 900; color: #ffd95e;
+    text-shadow: 0 2px 0 #7a4d00, 0 6px 18px rgba(0,0,0,.5);
+  }
+  header p { margin-top: 10px; font-size: 15px; color: #b9a8e0; font-weight: 700; }
+  header .meta { margin-top: 6px; font-size: 12.5px; color: #8a7ab0; font-weight: 700; }
+
+  h2 { font-size: 20px; font-weight: 900; color: #ffd95e; margin: 40px 0 14px; }
+
+  .cards { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+  @media (max-width: 860px) { .cards { grid-template-columns: 1fr; } }
+  .card {
+    background: rgba(255,255,255,.05);
+    border: 1px solid rgba(255,255,255,.12);
+    border-radius: 18px; overflow: hidden;
+    display: flex; flex-direction: column;
+  }
+  .card img { width: 100%; display: block; border-bottom: 1px solid rgba(255,255,255,.1); }
+  .card .body { padding: 18px 20px 22px; flex: 1; display: flex; flex-direction: column; }
+  .card h3 { font-size: 19px; font-weight: 900; color: #fff; }
+  .card .tag {
+    display: inline-block; margin: 8px 0 12px; padding: 3px 12px; border-radius: 999px;
+    font-size: 11.5px; font-weight: 900; letter-spacing: .5px;
+  }
+  .tag.wheel { background: #5b3fa8; color: #e6dcff; }
+  .tag.square { background: #1d6b54; color: #c8f6e2; }
+  .card ul { list-style: none; font-size: 13.5px; line-height: 1.85; font-weight: 700; }
+  .card ul li::before { content: "▸ "; color: #ffd95e; }
+  .card a.btn {
+    margin-top: 16px; align-self: flex-start;
+    padding: 11px 26px; border-radius: 13px; text-decoration: none;
+    background: linear-gradient(180deg,#5ecb56,#338a2d); box-shadow: 0 4px 0 #1f5c1b;
+    color: #fff; font-weight: 900; font-size: 14.5px;
+  }
+  .card a.btn:active { transform: translateY(2px); box-shadow: none; }
+
+  table { width: 100%; border-collapse: collapse; font-size: 13.5px; background: rgba(255,255,255,.04); border-radius: 14px; overflow: hidden; }
+  th, td { padding: 10px 14px; text-align: left; border-bottom: 1px solid rgba(255,255,255,.08); font-weight: 700; }
+  th { background: rgba(255,255,255,.07); color: #ffd95e; font-weight: 900; }
+  td:first-child { color: #fff; }
+
+  .tiers span { display: inline-block; padding: 2px 12px; border-radius: 999px; font-weight: 900; font-size: 12px; margin-right: 8px; color: #1b1135; }
+  .t-common { background: #9aa3ad; } .t-rare { background: #4cb944; }
+  .t-mythic { background: #5aa6ec; } .t-legendary { background: #f4c33b; }
+
+  .note {
+    margin-top: 14px; background: rgba(255,217,94,.08); border: 1px solid rgba(255,217,94,.25);
+    border-radius: 12px; padding: 12px 16px; font-size: 13px; font-weight: 700; color: #ffe9a8; line-height: 1.6;
+  }
+  footer { margin-top: 56px; text-align: center; font-size: 12px; color: #8a7ab0; font-weight: 700; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>🎰 Mergedom — Gacha Spinners</h1>
+    <p>Two time-limited coin-sink spinner events · interactive mockups + feature report</p>
+    <div class="meta">PRD draft · June 2026 · all values Kinoa remote-config driven</div>
+  </header>
+
+  <div class="cards">
+    <div class="card">
+      <a href="gacha-spinner-round.html"><img src="gacha-spinner-round-screenshot.png" alt="Jackpot Wheel mockup"></a>
+      <div class="body">
+        <h3>🎡 Jackpot Wheel</h3>
+        <span class="tag wheel">ROUND · 3 DAYS · LADDER COST</span>
+        <ul>
+          <li>Center jackpot: <b>Tier 10 producer</b> (Cleaning Set MAX, top item in the game)</li>
+          <li>Escalating ladder 200 → 1,600 coins · <b>10,000 total</b> for all 10 spins</li>
+          <li><b>Jackpot guaranteed on spin 10</b> · 1-in-1,000,000 chance on every spin before that</li>
+          <li>9 prize segments — landing awards exactly the item shown</li>
+          <li>ⓘ odds popup · skip-animation toggle · ends on jackpot claim</li>
+        </ul>
+        <a class="btn" href="gacha-spinner-round.html">Open interactive mockup ▶</a>
+      </div>
+    </div>
+
+    <div class="card">
+      <a href="gacha-spinner-square.html"><img src="gacha-spinner-square-screenshot.png" alt="Lucky Square mockup"></a>
+      <div class="body">
+        <h3>🎲 Lucky Square</h3>
+        <span class="tag square">SQUARE · 7 DAYS · FLAT COST</span>
+        <ul>
+          <li>20-cell square track · <b>4 Mythic corner prizes</b></li>
+          <li>Flat <b>200 coins per spin</b>, unlimited spins — pure coin sink</li>
+          <li><b>Guaranteed MYTHIC prize every 25 spins</b> (pity counter, resets on any Mythic)</li>
+          <li>Every cell shows a concrete prize — landing awards exactly that item</li>
+          <li>ⓘ odds popup · skip-animation toggle · runner deceleration animation</li>
+        </ul>
+        <a class="btn" href="gacha-spinner-square.html">Open interactive mockup ▶</a>
+      </div>
+    </div>
+  </div>
+
+  <h2>Reward Tiers (shared)</h2>
+  <p class="tiers" style="margin-bottom:14px">
+    <span class="t-common">Common</span><span class="t-rare">Rare</span><span class="t-mythic">Mythic</span><span class="t-legendary">Legendary</span>
+  </p>
+  <table>
+    <tr><th>Tier</th><th>Wheel weight</th><th>Square weight</th><th>Role</th></tr>
+    <tr><td>Common</td><td>60%</td><td>50%</td><td>Filler — small energy / coins</td></tr>
+    <tr><td>Rare</td><td>25%</td><td>30%</td><td>OK — boosters, medium energy</td></tr>
+    <tr><td>Mythic</td><td>10%</td><td>5% (corners + 25-spin pity)</td><td>Really good — premium boosters, producers</td></tr>
+    <tr><td>Legendary</td><td>5%</td><td>15%</td><td>Top non-jackpot — UE, high-tier producers</td></tr>
+  </table>
+
+  <h2>Mechanics at a Glance</h2>
+  <table>
+    <tr><th></th><th>Jackpot Wheel</th><th>Lucky Square</th></tr>
+    <tr><td>Cost model</td><td>Ladder: 200/400/600/800/1000/1200/1300/1400/1500/1600</td><td>Flat 200 coins, no spin limit</td></tr>
+    <tr><td>Pity</td><td>Jackpot forced on spin 10</td><td>Mythic forced after 24 dry spins</td></tr>
+    <tr><td>Worst-case chase cost</td><td>10,000 coins (jackpot)</td><td>5,000 coins (one Mythic)</td></tr>
+    <tr><td>End condition</td><td>Jackpot claimed or timer</td><td>Timer only</td></tr>
+    <tr><td>Roll integrity</td><td colspan="2">Server-rolled at purchase · one <code>spins_log</code> DB record per spin (shown live in the mockups' event log)</td></tr>
+  </table>
+
+  <h2>Tracking &amp; Data</h2>
+  <table>
+    <tr><th>Layer</th><th>What we capture</th></tr>
+    <tr><td>Analytics events</td><td><code>gacha_spin</code>, <code>gacha_jackpot_claimed</code> / <code>gacha_mythic_won</code>, <code>gacha_info_opened</code>, <code>gacha_no_coins</code>, <code>gacha_skip_toggled</code></td></tr>
+    <tr><td>Key KPIs</td><td>Ladder-depth distribution (wheel), pity-dependence ratio (square), coins sunk per participant, shop-redirect conversion, skip adoption</td></tr>
+    <tr><td>DB per spin</td><td>event_id, spin_no, cost, result tier + item, pity state, coins_after, server timestamp</td></tr>
+    <tr><td>Anomaly flag</td><td>Any early 1-in-1M jackpot → cheat-detection review</td></tr>
+  </table>
+
+  <div class="note">
+    ⚠ Odds disclosure: both spinners expose exact per-tier rates, pity guarantees, and total cost in the ⓘ popup, rendered from live config — covers the Google Play loot-box odds requirement. The wheel's jackpot segment is normal-sized by design; the popup is the source of truth for its real odds.
+  </div>
+
+  <footer>Mergedom: Home Design &amp; Merge · Gacha Spinners feature mockups · built as standalone HTML, no dependencies</footer>
+</div>
+</body>
+</html>
